@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cute Photobooth Studio - Free & Fun!</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Poppins:wght@400;500;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #fdf2f8;
+        }
+        .font-fredoka { font-family: 'Fredoka', cursive; }
+        .font-marker { font-family: 'Permanent Marker', cursive; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #f472b6; border-radius: 4px; }
+
+        /* Canvas Preview Container */
+        .photobooth-frame {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+
+        /* Filter Styles */
+        .filter-normal { filter: none; }
+        .filter-soft { filter: brightness(1.08) contrast(0.95) saturate(1.1) sepia(0.05); }
+        .filter-vintage { filter: sepia(0.45) contrast(1.1) brightness(0.95) hue-rotate(-10deg); }
+        .filter-bw { filter: grayscale(100%) contrast(1.2) brightness(1.05); }
+        .filter-sunset { filter: sepia(0.25) saturate(1.6) hue-rotate(-15deg) contrast(1.05); }
+        .filter-neon { filter: saturate(2) contrast(1.3) hue-rotate(20deg); }
+
+        /* Printable Area */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printArea, #printArea * {
+                visibility: visible;
+            }
+            #printArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-pink-100 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-pink-500 rounded-2xl flex items-center justify-center text-white text-xl shadow-md shadow-pink-200">
+                    <i class="fa-solid fa-camera"></i>
+                </div>
+                <div>
+                    <h1 class="font-fredoka text-xl text-slate-800 font-bold leading-none">Aca Photobooth</h1>
+                    <p class="text-xs text-pink-500 font-medium mt-0.5">Custom Photo Studio & Printer</p>
+                </div>
+            </div>
+
+            <button onclick="openDonationModal()" class="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-bold px-4 py-2 rounded-full text-sm shadow-md shadow-amber-200 transition-all flex items-center gap-2 transform active:scale-95">
+                <i class="fa-solid fa-heart text-red-100 animate-pulse"></i>
+                <span>Traktir Donasi QRIS</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Controls / Stepper Panel -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+
+            <!-- Step Indicators -->
+            <div class="bg-white p-4 rounded-3xl border border-pink-100 shadow-sm flex items-center justify-between">
+                <div id="step-btn-1" class="step-badge flex items-center gap-2 font-bold text-pink-500 text-sm">
+                    <span class="w-7 h-7 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs">1</span>
+                    <span class="hidden sm:inline">Ukuran</span>
+                </div>
+                <div class="h-0.5 bg-slate-100 flex-1 mx-2"></div>
+                <div id="step-btn-2" class="step-badge flex items-center gap-2 text-slate-400 font-medium text-sm">
+                    <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs">2</span>
+                    <span class="hidden sm:inline">Foto</span>
+                </div>
+                <div class="h-0.5 bg-slate-100 flex-1 mx-2"></div>
+                <div id="step-btn-3" class="step-badge flex items-center gap-2 text-slate-400 font-medium text-sm">
+                    <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs">3</span>
+                    <span class="hidden sm:inline">Edit Frame</span>
+                </div>
+                <div class="h-0.5 bg-slate-100 flex-1 mx-2"></div>
+                <div id="step-btn-4" class="step-badge flex items-center gap-2 text-slate-400 font-medium text-sm">
+                    <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs">4</span>
+                    <span class="hidden sm:inline">Cetak</span>
+                </div>
+            </div>
+
+            <!-- STEP 1: Pengaturan Ukuran & Layout -->
+            <div id="step-1" class="step-content bg-white p-6 rounded-3xl border border-pink-100 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-fredoka text-xl text-slate-800">1. Pilih Ukuran Kertas</h2>
+                    <p class="text-xs text-slate-500">Sesuaikan ukuran hasil cetak photobooth kamu.</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="selectPaper('strip')" id="paper-strip" class="paper-opt p-4 border-2 border-pink-500 bg-pink-50/50 rounded-2xl text-left hover:border-pink-500 transition-all">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-sm text-slate-800">Photo Strip</span>
+                            <span class="text-xs bg-pink-100 text-pink-600 font-bold px-2 py-0.5 rounded-md">2 x 6"</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Format klasik strip vertikal untuk photobooth.</p>
+                    </button>
+
+                    <button onclick="selectPaper('4r')" id="paper-4r" class="paper-opt p-4 border-2 border-slate-200 rounded-2xl text-left hover:border-pink-500 transition-all">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-sm text-slate-800">Ukuran 4R</span>
+                            <span class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">4 x 6"</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Ukuran foto standar album foto fisik.</p>
+                    </button>
+
+                    <button onclick="selectPaper('a4')" id="paper-a4" class="paper-opt p-4 border-2 border-slate-200 rounded-2xl text-left hover:border-pink-500 transition-all">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-sm text-slate-800">Kertas A4</span>
+                            <span class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">Poster</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Ukuran besar cocok untuk collage / mini poster.</p>
+                    </button>
+
+                    <button onclick="selectPaper('a3')" id="paper-a3" class="paper-opt p-4 border-2 border-slate-200 rounded-2xl text-left hover:border-pink-500 transition-all">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-sm text-slate-800">Kertas A3</span>
+                            <span class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">Super Jumbo</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Ukuran cetak ekstra besar HD.</p>
+                    </button>
+                </div>
+
+                <!-- Orientasi -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Orientasi Kertas:</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="selectOrientation('portrait')" id="ori-portrait" class="ori-opt py-2.5 px-4 border-2 border-pink-500 bg-pink-50 text-pink-600 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-mobile-screen"></i> Portrait (Tegak)
+                        </button>
+                        <button onclick="selectOrientation('landscape')" id="ori-landscape" class="ori-opt py-2.5 px-4 border-2 border-slate-200 text-slate-600 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-display"></i> Landscape (Mendatar)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Jumlah Foto Grid -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Jumlah Slot Foto:</label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <button onclick="selectSlots(1)" class="slot-opt py-2 border-2 border-slate-200 rounded-xl font-bold text-xs hover:border-pink-500">1 Foto</button>
+                        <button onclick="selectSlots(2)" class="slot-opt py-2 border-2 border-slate-200 rounded-xl font-bold text-xs hover:border-pink-500">2 Foto</button>
+                        <button onclick="selectSlots(3)" class="slot-opt py-2 border-2 border-slate-200 rounded-xl font-bold text-xs hover:border-pink-500">3 Foto</button>
+                        <button onclick="selectSlots(4)" class="slot-opt py-2 border-2 border-pink-500 bg-pink-50 text-pink-600 rounded-xl font-bold text-xs">4 Foto</button>
+                        <button onclick="selectSlots(6)" class="slot-opt py-2 border-2 border-slate-200 rounded-xl font-bold text-xs hover:border-pink-500">6 Foto</button>
+                    </div>
+                </div>
+
+                <button onclick="goToStep(2)" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-pink-200 transition-all flex items-center justify-center gap-2 text-sm">
+                    Lanjut Ambil Foto <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- STEP 2: Kamera / Galeri -->
+            <div id="step-2" class="step-content hidden bg-white p-6 rounded-3xl border border-pink-100 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-fredoka text-xl text-slate-800">2. Ambil / Upload Foto</h2>
+                    <p class="text-xs text-slate-500">Gunakan webcam atau pilih file foto dari galeri HP/PC kamu.</p>
+                </div>
+
+                <!-- Pilihan Mode Foto -->
+                <div class="flex bg-slate-100 p-1 rounded-2xl">
+                    <button onclick="switchPhotoSource('camera')" id="src-cam-btn" class="flex-1 py-2 rounded-xl text-xs font-bold bg-white text-pink-500 shadow-sm flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-camera"></i> Kamera Webcam
+                    </button>
+                    <button onclick="switchPhotoSource('gallery')" id="src-gal-btn" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-images"></i> Upload Galeri
+                    </button>
+                </div>
+
+                <!-- Live Camera View -->
+                <div id="camera-box" class="space-y-4">
+                    <div class="relative bg-slate-900 rounded-2xl overflow-hidden aspect-video flex items-center justify-center shadow-inner">
+                        <video id="webcam" autoplay playsinline class="w-full h-full object-cover -scale-x-100"></video>
+                        <div id="countdown" class="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-fredoka text-7xl hidden">3</div>
+                        <div id="camera-placeholder" class="text-center text-slate-400 p-4">
+                            <i class="fa-solid fa-video-slash text-3xl mb-2"></i>
+                            <p class="text-xs">Klik tombol di bawah untuk mengaktifkan kamera.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button onclick="startCamera()" id="btn-start-cam" class="flex-1 bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-900 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-power-off"></i> Aktifkan Kamera
+                        </button>
+                        <button onclick="takeSnapSequence()" id="btn-snap" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-pink-200 flex items-center justify-center gap-1.5 disabled:opacity-50" disabled>
+                            <i class="fa-solid fa-circle-dot"></i> Ambil Foto Otomatis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gallery Upload View -->
+                <div id="gallery-box" class="space-y-4 hidden">
+                    <div class="border-2 border-dashed border-pink-200 hover:border-pink-400 rounded-2xl p-6 text-center cursor-pointer transition-all bg-pink-50/30" onclick="document.getElementById('batchFileInput').click()">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-pink-400 mb-2"></i>
+                        <p class="font-bold text-xs text-slate-700">Pilih Foto Sekaligus Dari Galeri</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Bisa pilih multiple file image (PNG, JPG)</p>
+                        <input type="file" id="batchFileInput" accept="image/*" multiple class="hidden" onchange="handleBatchUpload(event)">
+                    </div>
+
+                    <!-- Individual Photo Slot Inputs -->
+                    <div id="slot-upload-list" class="grid grid-cols-2 gap-2">
+                        <!-- Dynamic Upload Buttons will be populated here -->
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="goToStep(1)" class="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl text-xs">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali
+                    </button>
+                    <button onclick="goToStep(3)" class="w-2/3 bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-2xl text-xs shadow-md shadow-pink-200 flex items-center justify-center gap-1.5">
+                        Lanjut Edit Studio <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Edit Studio (Frame & Stiker) -->
+            <div id="step-3" class="step-content hidden bg-white p-6 rounded-3xl border border-pink-100 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-fredoka text-xl text-slate-800">3. Studio Edit Frame</h2>
+                    <p class="text-xs text-slate-500">Kreasikan warna frame, filter foto, dan stiker lucu.</p>
+                </div>
+
+                <!-- Custom Warna Frame -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Warna Frame Background:</label>
+                    <div class="flex items-center gap-3">
+                        <input type="color" id="frameColorPicker" value="#ffffff" onchange="updateFrameColor(this.value)" class="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 p-1">
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="updateFrameColor('#ffffff')" class="w-7 h-7 rounded-full bg-white border border-slate-300 shadow-sm"></button>
+                            <button onclick="updateFrameColor('#fce7f3')" class="w-7 h-7 rounded-full bg-pink-200 border border-slate-200"></button>
+                            <button onclick="updateFrameColor('#e0e7ff')" class="w-7 h-7 rounded-full bg-indigo-200 border border-slate-200"></button>
+                            <button onclick="updateFrameColor('#fef3c7')" class="w-7 h-7 rounded-full bg-amber-200 border border-slate-200"></button>
+                            <button onclick="updateFrameColor('#dcfce7')" class="w-7 h-7 rounded-full bg-emerald-200 border border-slate-200"></button>
+                            <button onclick="updateFrameColor('#1e293b')" class="w-7 h-7 rounded-full bg-slate-800 border border-slate-200"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Foto -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Filter Efek Foto:</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="applyFilter('normal')" class="py-2 border border-slate-200 rounded-xl text-xs font-bold hover:border-pink-500">Normal</button>
+                        <button onclick="applyFilter('soft')" class="py-2 border border-slate-200 rounded-xl text-xs font-bold hover:border-pink-500">Soft Pastel</button>
+                        <button onclick="applyFilter('vintage')" class="py-2 border border-slate-200 rounded-xl text-xs font-bold hover:border-pink-500">Vintage</button>
+                        <button onclick="applyFilter('bw')" class="py-2 border border-slate-200 rounded-xl text-xs font-bold hover:border-pink-500">Hitam Putih</button>
+                        <button onclick="applyFilter('sunset')" class="py-2 border border-slate-200 rounded-xl text-xs font-bold hover:border-pink-500">Warm Sunset</button>
+                        <button onclick="applyFilter('neon')" class="py-2 border border-slate-200 rounded-xl text-xs font-bold hover:border-pink-500">Cyber Neon</button>
+                    </div>
+                </div>
+
+                <!-- Tambahkan Stiker -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Tempel Stiker Lucu (Klik untuk tambah):</label>
+                    <div class="flex gap-2 overflow-x-auto pb-2 text-2xl">
+                        <button onclick="addSticker('❤️️')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">❤️</button>
+                        <button onclick="addSticker('✨')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">✨</button>
+                        <button onclick="addSticker('🎀')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">🎀</button>
+                        <button onclick="addSticker('🌸')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">🌸</button>
+                        <button onclick="addSticker('🧸')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">🧸</button>
+                        <button onclick="addSticker('🐱')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">🐱</button>
+                        <button onclick="addSticker('👑')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">👑</button>
+                        <button onclick="addSticker('⭐')" class="p-2 bg-pink-50 hover:bg-pink-100 rounded-xl">⭐</button>
+                    </div>
+                </div>
+
+                <!-- Edit Teks Judul & Tanggal -->
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Teks Judul Frame:</label>
+                        <input type="text" id="frameTitleInput" value="Aca Photobooth Studio" oninput="updateFrameText()" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-pink-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Tanggal / Subtitle:</label>
+                        <input type="text" id="frameDateInput" value="September 2026" oninput="updateFrameText()" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-pink-500">
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="goToStep(2)" class="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl text-xs">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali
+                    </button>
+                    <button onclick="goToStep(4)" class="w-2/3 bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-2xl text-xs shadow-md shadow-pink-200 flex items-center justify-center gap-1.5">
+                        Selesai & Cetak <i class="fa-solid fa-print"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 4: Cetak & Download -->
+            <div id="step-4" class="step-content hidden bg-white p-6 rounded-3xl border border-pink-100 shadow-sm space-y-5">
+                <div>
+                    <h2 class="font-fredoka text-xl text-slate-800">4. Download & Cetak Hasil</h2>
+                    <p class="text-xs text-slate-500">Foto kamu siap diunduh atau dicetak langsung!</p>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="downloadPNG()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-pink-200 transition-all flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-download"></i> Download PNG Resolusi Tinggi
+                    </button>
+
+                    <button onclick="printPhoto()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-print"></i> Cetak Langsung (Printer)
+                    </button>
+
+                    <button onclick="openDonationModal()" class="w-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold py-3 rounded-2xl text-xs transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-heart text-red-500"></i> Dukung / Traktir Operator via QRIS
+                    </button>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <button onclick="goToStep(1)" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> Buat Photobooth Baru
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Side: Live Canvas Frame Preview -->
+        <div class="lg:col-span-7 flex flex-col items-center justify-start min-h-[500px]">
+            <div class="sticky top-20 w-full flex flex-col items-center">
+                <div class="flex items-center justify-between w-full max-w-md mb-2 px-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider"><i class="fa-solid fa-eye"></i> Preview Live Studio</span>
+                    <span id="paper-info-tag" class="text-[10px] bg-pink-100 text-pink-600 font-bold px-2 py-0.5 rounded-full">Strip (Portrait)</span>
+                </div>
+
+                <!-- Photobooth Interactive Canvas Box -->
+                <div id="printArea" class="relative w-full max-w-md flex justify-center items-center">
+                    <div id="canvasContainer" class="relative photobooth-frame rounded-2xl overflow-hidden bg-white p-4 border border-slate-200 transition-all duration-300">
+                        <canvas id="photoCanvas" class="w-full h-auto rounded-lg block"></canvas>
+                        <!-- Interactive Stickers Overlay Layer -->
+                        <div id="stickerLayer" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Donasi QRIS -->
+    <div id="donationModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button onclick="closeDonationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3 text-amber-600 text-xl">
+                <i class="fa-solid fa-hand-holding-heart"></i>
+            </div>
+
+            <h3 class="font-fredoka text-lg text-slate-800">Dukung Aplikasi Ini</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-4">Dukung pengembang agar aplikasi ini tetap gratis tanpa iklan!</p>
+
+            <!-- Tampilan Kartu QRIS -->
+            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 mb-4">
+                <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                    <img id="qrisImg" src="https://drive.google.com/thumbnail?id=1G_Us4k_KIK-YPM-EKyA9ubH1jE_AK7W0&sz=w1000" alt="QRIS PANEN RASA, CMNYN" class="w-full h-auto rounded-lg object-contain max-h-64 mx-auto" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1G_Us4k_KIK-YPM-EKyA9ubH1jE_AK7W0=w1000';">
+                </div>
+
+                <div class="mt-3 text-left bg-white p-2.5 rounded-xl border border-slate-100 text-xs space-y-1">
+                    <div class="flex justify-between text-slate-500">
+                        <span>Merchant:</span>
+                        <span class="font-bold text-slate-800">PANEN RASA, CMNYN</span>
+                    </div>
+                    <div class="flex justify-between text-slate-500">
+                        <span>NMID:</span>
+                        <span class="font-mono text-slate-700 font-bold">ID1026536081528</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="copyNMID()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+                <i class="fa-regular fa-copy"></i> Salin NMID Pembayaran
+            </button>
+        </div>
+    </div>
+
+    <!-- Audio Beep FX -->
+    <script>
+        // App State
+        const state = {
+            paper: 'strip', // strip, 4r, a4, a3
+            orientation: 'portrait', // portrait, landscape
+            slots: 4,
+            frameColor: '#ffffff',
+            filter: 'normal',
+            titleText: 'Aca Photobooth Studio',
+            dateText: 'September 2026',
+            photos: [], // Array of loaded HTMLImageElement
+            stickers: [], // Array of { emoji, x, y, size }
+            stream: null
+        };
+
+        const canvas = document.getElementById('photoCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Paper dimensions mapping
+        const paperDimensions = {
+            'strip': { portrait: [600, 1800], landscape: [1800, 600] },
+            '4r': { portrait: [1200, 1800], landscape: [1800, 1200] },
+            'a4': { portrait: [1240, 1754], landscape: [1754, 1240] },
+            'a3': { portrait: [1754, 2480], landscape: [2480, 1754] }
+        };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            initSlots();
+            renderCanvas();
+        });
+
+        // Step Navigation
+        function goToStep(stepNum) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`step-${stepNum}`).classList.remove('hidden');
+
+            document.querySelectorAll('.step-badge').forEach((el, idx) => {
+                if (idx + 1 === stepNum) {
+                    el.className = 'step-badge flex items-center gap-2 font-bold text-pink-500 text-sm';
+                    el.children[0].className = 'w-7 h-7 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs';
+                } else {
+                    el.className = 'step-badge flex items-center gap-2 text-slate-400 font-medium text-sm';
+                    el.children[0].className = 'w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs';
+                }
+            });
+        }
+
+        // Selection Handlers
+        function selectPaper(type) {
+            state.paper = type;
+            document.querySelectorAll('.paper-opt').forEach(el => el.className = 'paper-opt p-4 border-2 border-slate-200 rounded-2xl text-left hover:border-pink-500 transition-all');
+            document.getElementById(`paper-${type}`).className = 'paper-opt p-4 border-2 border-pink-500 bg-pink-50/50 rounded-2xl text-left hover:border-pink-500 transition-all';
+            updateTagInfo();
+            renderCanvas();
+        }
+
+        function selectOrientation(ori) {
+            state.orientation = ori;
+            document.querySelectorAll('.ori-opt').forEach(el => el.className = 'ori-opt py-2.5 px-4 border-2 border-slate-200 text-slate-600 font-bold rounded-xl text-xs flex items-center justify-center gap-2');
+            document.getElementById(`ori-${ori}`).className = 'ori-opt py-2.5 px-4 border-2 border-pink-500 bg-pink-50 text-pink-600 font-bold rounded-xl text-xs flex items-center justify-center gap-2';
+            updateTagInfo();
+            renderCanvas();
+        }
+
+        function selectSlots(num) {
+            state.slots = num;
+            initSlots();
+            renderCanvas();
+        }
+
+        function updateTagInfo() {
+            document.getElementById('paper-info-tag').innerText = `${state.paper.toUpperCase()} (${state.orientation})`;
+        }
+
+        function initSlots() {
+            state.photos = new Array(state.slots).fill(null);
+            renderUploadSlotsUI();
+        }
+
+        // Camera Logic
+        async function startCamera() {
+            try {
+                state.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } });
+                const video = document.getElementById('webcam');
+                video.srcObject = state.stream;
+                document.getElementById('camera-placeholder').classList.add('hidden');
+                document.getElementById('btn-snap').disabled = false;
+            } catch (err) {
+                alert('Gagal mengakses kamera: ' + err.message);
+            }
+        }
+
+        function switchPhotoSource(src) {
+            if (src === 'camera') {
+                document.getElementById('camera-box').classList.remove('hidden');
+                document.getElementById('gallery-box').classList.add('hidden');
+                document.getElementById('src-cam-btn').className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-white text-pink-500 shadow-sm flex items-center justify-center gap-1.5';
+                document.getElementById('src-gal-btn').className = 'flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 flex items-center justify-center gap-1.5';
+            } else {
+                document.getElementById('camera-box').classList.add('hidden');
+                document.getElementById('gallery-box').classList.remove('hidden');
+                document.getElementById('src-gal-btn').className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-white text-pink-500 shadow-sm flex items-center justify-center gap-1.5';
+                document.getElementById('src-cam-btn').className = 'flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 flex items-center justify-center gap-1.5';
+            }
+        }
+
+        async function takeSnapSequence() {
+            const video = document.getElementById('webcam');
+            const countdownEl = document.getElementById('countdown');
+            countdownEl.classList.remove('hidden');
+
+            for (let i = 0; i < state.slots; i++) {
+                for (let c = 3; c > 0; c--) {
+                    countdownEl.innerText = c;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+                countdownEl.innerText = "📸";
+                
+                // Capture Frame
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth || 640;
+                tempCanvas.height = video.videoHeight || 480;
+                const tCtx = tempCanvas.getContext('2d');
+                tCtx.translate(tempCanvas.width, 0);
+                tCtx.scale(-1, 1);
+                tCtx.drawImage(video, 0, 0);
+
+                const img = new Image();
+                img.src = tempCanvas.toDataURL('image/png');
+                await new Promise(r => img.onload = r);
+                state.photos[i] = img;
+
+                renderCanvas();
+                renderUploadSlotsUI();
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            countdownEl.classList.add('hidden');
+        }
+
+        // Gallery Upload
+        function handleBatchUpload(e) {
+            const files = Array.from(e.target.files);
+            files.forEach((file, idx) => {
+                if (idx < state.slots) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            state.photos[idx] = img;
+                            renderCanvas();
+                            renderUploadSlotsUI();
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function uploadSingleSlot(idx) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            state.photos[idx] = img;
+                            renderCanvas();
+                            renderUploadSlotsUI();
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        }
+
+        function renderUploadSlotsUI() {
+            const container = document.getElementById('slot-upload-list');
+            container.innerHTML = '';
+            for (let i = 0; i < state.slots; i++) {
+                const hasPhoto = !!state.photos[i];
+                const btn = document.createElement('div');
+                btn.className = `p-3 border rounded-xl flex items-center justify-between text-xs ${hasPhoto ? 'border-pink-500 bg-pink-50/40' : 'border-slate-200'}`;
+                btn.innerHTML = `
+                    <span class="font-bold text-slate-700">Foto Slot #${i + 1}</span>
+                    <button onclick="uploadSingleSlot(${i})" class="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-pink-50 hover:text-pink-600">
+                        ${hasPhoto ? 'Ganti' : 'Upload'}
+                    </button>
+                `;
+                container.appendChild(btn);
+            }
+        }
+
+        // Canvas Rendering Core Engine
+        function renderCanvas() {
+            const dim = paperDimensions[state.paper][state.orientation];
+            canvas.width = dim[0];
+            canvas.height = dim[1];
+
+            // Fill Background Frame
+            ctx.fillStyle = state.frameColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate grid photo layout
+            const padding = Math.round(canvas.width * 0.04);
+            const headerHeight = Math.round(canvas.height * 0.12);
+            const availableHeight = canvas.height - headerHeight - (padding * 2);
+
+            let cols = 1;
+            let rows = state.slots;
+
+            if (state.orientation === 'landscape' && state.slots > 1) {
+                cols = state.slots >= 4 ? (state.slots === 6 ? 3 : 2) : state.slots;
+                rows = Math.ceil(state.slots / cols);
+            } else if (state.paper === '4r' || state.paper === 'a4' || state.paper === 'a3') {
+                if (state.slots === 4) { cols = 2; rows = 2; }
+                if (state.slots === 6) { cols = 2; rows = 3; }
+            }
+
+            const gap = Math.round(padding * 0.5);
+            const slotWidth = (canvas.width - (padding * 2) - ((cols - 1) * gap)) / cols;
+            const slotHeight = (availableHeight - ((rows - 1) * gap)) / rows;
+
+            // Apply Photo Filter Effect
+            ctx.filter = getCanvasFilterCSS(state.filter);
+
+            // Draw Photo Slots
+            for (let i = 0; i < state.slots; i++) {
+                const r = Math.floor(i / cols);
+                const c = i % cols;
+                const x = padding + (c * (slotWidth + gap));
+                const y = padding + (r * (slotHeight + gap));
+
+                if (state.photos[i]) {
+                    drawCroppedImage(ctx, state.photos[i], x, y, slotWidth, slotHeight);
+                } else {
+                    // Placeholder Box
+                    ctx.fillStyle = '#f1f5f9';
+                    ctx.fillRect(x, y, slotWidth, slotHeight);
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.font = 'bold 24px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`Slot ${i + 1}`, x + (slotWidth / 2), y + (slotHeight / 2));
+                }
+            }
+
+            // Reset Filter for Text & Overlays
+            ctx.filter = 'none';
+
+            // Draw Footer Text
+            const textY = canvas.height - (headerHeight / 2);
+            ctx.fillStyle = isColorDark(state.frameColor) ? '#ffffff' : '#1e293b';
+            ctx.textAlign = 'center';
+
+            ctx.font = `bold ${Math.round(canvas.width * 0.04)}px 'Fredoka', cursive, sans-serif`;
+            ctx.fillText(state.titleText, canvas.width / 2, textY - 10);
+
+            ctx.font = `${Math.round(canvas.width * 0.025)}px 'Poppins', sans-serif`;
+            ctx.fillText(state.dateText, canvas.width / 2, textY + 20);
+
+            // Render Stickers on Canvas
+            state.stickers.forEach(s => {
+                ctx.font = `${s.size}px sans-serif`;
+                ctx.fillText(s.emoji, s.x, s.y);
+            });
+        }
+
+        function drawCroppedImage(ctx, img, x, y, w, h) {
+            const imgRatio = img.width / img.height;
+            const targetRatio = w / h;
+            let sx, sy, sw, sh;
+
+            if (imgRatio > targetRatio) {
+                sh = img.height;
+                sw = img.height * targetRatio;
+                sx = (img.width - sw) / 2;
+                sy = 0;
+            } else {
+                sw = img.width;
+                sh = img.width / targetRatio;
+                sx = 0;
+                sy = (img.height - sh) / 2;
+            }
+
+            ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+        }
+
+        function getCanvasFilterCSS(filter) {
+            switch (filter) {
+                case 'soft': return 'brightness(1.08) contrast(0.95) saturate(1.1)';
+                case 'vintage': return 'sepia(0.45) contrast(1.1) brightness(0.95)';
+                case 'bw': return 'grayscale(100%) contrast(1.2)';
+                case 'sunset': return 'sepia(0.25) saturate(1.6) hue-rotate(-15deg)';
+                case 'neon': return 'saturate(2) contrast(1.3) hue-rotate(20deg)';
+                default: return 'none';
+            }
+        }
+
+        function updateFrameColor(val) {
+            state.frameColor = val;
+            document.getElementById('frameColorPicker').value = val;
+            renderCanvas();
+        }
+
+        function applyFilter(f) {
+            state.filter = f;
+            renderCanvas();
+        }
+
+        function updateFrameText() {
+            state.titleText = document.getElementById('frameTitleInput').value;
+            state.dateText = document.getElementById('frameDateInput').value;
+            renderCanvas();
+        }
+
+        function addSticker(emoji) {
+            state.stickers.push({
+                emoji: emoji,
+                x: canvas.width / 2 + (Math.random() * 100 - 50),
+                y: canvas.height / 2 + (Math.random() * 100 - 50),
+                size: Math.round(canvas.width * 0.08)
+            });
+            renderCanvas();
+        }
+
+        function isColorDark(colorHex) {
+            const hex = colorHex.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+            return brightness < 128;
+        }
+
+        // Export Actions
+        function downloadPNG() {
+            const link = document.createElement('a');
+            link.download = `photobooth-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function printPhoto() {
+            window.print();
+        }
+
+        // Modal Controls
+        function openDonationModal() {
+            document.getElementById('donationModal').classList.remove('hidden');
+        }
+
+        function closeDonationModal() {
+            document.getElementById('donationModal').classList.add('hidden');
+        }
+
+        function copyNMID() {
+            navigator.clipboard.writeText("ID1026536081528");
+            alert("NMID (ID1026536081528) berhasil disalin ke clipboard!");
+        }
+    </script>
+</body>
+</html>
